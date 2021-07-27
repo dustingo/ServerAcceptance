@@ -1,0 +1,39 @@
+[cpu]
+model = "Intel(R) Core(TM) i7-10510U CPU @ 1.80GHz"
+processor = 2
+
+[system]
+osname = "CentOS"
+osrelease = "7.9.2009"
+oskernel = "3.10.0-1160.el7.x86_64"
+osarch = "amd64"
+
+[interface]
+    [interface.ens33]
+    name = "ens33"
+    speed = "1000Mb/s"
+    mtu = "1500"
+    [interface.ens34]
+    name = "virbr0"
+    speed = "1000Mb/s"
+    mtp = "1500"
+
+[dns]
+nameserver = ["114.114.114.114","8.8.8.8"]
+
+[memory]
+total = 995700
+#磁盘的大小size类型为float64
+[disk]
+    [disk.dbhome]
+    mountpoint = "/dbhome"
+    size = 20466.0
+    [disk.root]
+    mountpoint = "/"
+    size = 18121.0
+    [disk.export]
+    mountpoint = "/export"
+    size = 29300.0
+
+[resolution]
+server = ["www.baidu.com"]

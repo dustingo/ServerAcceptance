@@ -1,0 +1,121 @@
+#state表示当前区域的有效性： 1 表示启用，0不启用;如果为0，那么将会忽略此区域
+
+
+#service.off 和 service.on 为固定标签;label也为固定，辅助解析
+[service]
+    [service.off]
+    state = 1
+    label = "off"
+    name = [
+        "cups.path",
+        "cups.service",
+        "abrt-ccpp.service",
+        "abrt-oops.service",
+        "abrt-vmcore.service",
+        "abrtd.service",
+        "abrtd-xorg.service",
+        "avahi-daemon.service",
+        "bluetooth.service",
+        "chronyd.service",
+        "dbus-org.bluez.service",
+        "dbus-org.freedesktop.Avahi.service",
+        "dbus-org.freedesktop.ModemManager1.servic",
+        "display-manager.service",
+        "dmraid-activation.service",
+        "gdm.service",
+        "iscsi-onboot.service",
+        "iscsi.service",
+        "ksm.service",
+        "ksmtuned.service",
+        "lvm2-monitor.service",
+        "mdmonitor.service",
+        "ModemManager.service",
+        "postfix.service",
+        "qemu-guest-agent.service",
+        "rpcbind.service",
+        "tuned.service "
+    ]
+    [service.on]
+    state = 1
+    label = "on"
+    name = [
+        "ntpd.service",
+        "iptables.service"
+    ]
+
+[package]
+    [package.yum]
+    state = 1
+    action = "pcm"
+    name = [
+        "ntpd"
+    ]
+    [package.pip]
+    state = 1
+    action = "pcm"
+    name = [
+        "sh"
+    ]
+     [package.perl]
+    state = 1
+    action = "pcm"
+    name = [
+        "XML::Parser"
+    ]
+
+[directory]
+    [directory.export]
+    state = 1
+    action = "dcm"
+    path = "/export"
+    mode = 0755
+    owner = "root"
+    [directory.logs]
+    state = 1
+    action = "dcm"
+    path = "/export/logs"
+    mode = 0755
+    owner = "root"
+
+#ulimted 参数
+[ulimit]
+    [ulimit.core]
+    state = 1
+    action = "ucm"
+        [ulimit.core.soft]
+        domain = "root"
+        type = "soft"
+        item = "core"
+        value = "unlimited"
+        [ulimit.core.hard]
+        domain = "root"
+        type = "hard"
+        item = "core"
+        value = "unlimited"
+    [ulimit.nofile]
+    state = 1
+    action = "ucm"
+        [ulimit.nofile.soft]
+        domain = "root"
+        type = "soft"
+        item = "nofile"
+        value = "65535"
+        [ulimit.nofile.hard]
+        domain = "root"
+        type = "hard"
+        item = "nofile"
+        value = "65535"
+    [ulimit.nproc]
+    state = 1
+    action = "ucm"
+        [ulimit.nproc.soft]
+        domain = "root"
+        type = "soft"
+        item = "nproc"
+        value = "65535"
+        [ulimit.nproc.hard]
+        domain = "root"
+        type = "hard"
+        item = "nproc"
+        value = "65535"
+

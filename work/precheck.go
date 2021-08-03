@@ -10,7 +10,15 @@ import (
 )
 
 // PreCheck 预检查函数
-func PreCheck() {
+func PreCheck(url string) {
+	//下载配置文件
+	//confURL := "https://raw.githubusercontent.com/dustingo/configtoml/main/config.toml"
+	wgetErr := Wget(url, "config.toml")
+	if wgetErr != nil {
+		fmt.Println(wgetErr)
+		return
+	}
+
 	//cpu
 	c := new(util.CpuInfo)
 	c.GetCpu()
@@ -41,27 +49,6 @@ func PreCheck() {
 
 	//
 
-	//下载配置文件
-	confURL := "https://raw.githubusercontent.com/dustingo/configtoml/main/config.toml"
-	wgetErr := Wget(confURL, "config.toml")
-	if wgetErr != nil {
-		fmt.Println(wgetErr)
-		return
-	}
-	/*
-		res, httperr := http.Get(confURL)
-		if httperr != nil {
-			log.Fatalln(httperr)
-			return
-		}
-		f, fileerr := os.Create("config.toml")
-		if fileerr != nil {
-			log.Fatalln(fileerr)
-			return
-		}
-		defer f.Close()
-		io.Copy(f, res.Body)
-	*/
 	//解析配置文件
 	tc, tcerr := util.ParseToml("config.toml")
 	if tcerr != nil {

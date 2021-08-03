@@ -1,39 +1,117 @@
-[cpu]
-model = "Intel(R) Core(TM) i7-10510U CPU @ 1.80GHz"
-processor = 2
+#state表示当前区域的有效性： 1 表示启用，0不启用;如果为0，那么将会忽略此区域
 
-[system]
-osname = "CentOS"
-osrelease = "7.9.2009"
-oskernel = "3.10.0-1160.el7.x86_64"
-osarch = "amd64"
 
-[interface]
-    [interface.ens33]
-    name = "ens33"
-    speed = "1000Mb/s"
-    mtu = "1500"
-    [interface.ens34]
-    name = "virbr0"
-    speed = "1000Mb/s"
-    mtp = "1500"
+#service.off 和 service.on 为固定标签;label也为固定，辅助解析
+[service]
+    [service.off]
+    state = 1
+    label = "off"
+    name = [
+        "cups.path",
+        "cups.service",
+        "abrt-ccpp.service",
+        "abrt-oops.service",
+        "abrt-vmcore.service",
+        "abrtd.service",
+        "abrtd-xorg.service",
+        "avahi-daemon.service",
+        "bluetooth.service",
+        "chronyd.service",
+        "dbus-org.bluez.service",
+        "dbus-org.freedesktop.Avahi.service",
+        "dbus-org.freedesktop.ModemManager1.servic",
+        "display-manager.service",
+        "dmraid-activation.service",
+        "gdm.service",
+        "iscsi-onboot.service",
+        "iscsi.service",
+        "ksm.service",
+        "ksmtuned.service",
+        "lvm2-monitor.service",
+        "mdmonitor.service",
+        "ModemManager.service",
+        "postfix.service",
+        "qemu-guest-agent.service",
+        "rpcbind.service",
+        "tuned.service "
+    ]
+    [service.on]
+    state = 1
+    label = "on"
+    name = [
+        "ntpd.service",
+        "iptables.service"
+    ]
 
-[dns]
-nameserver = ["114.114.114.114","8.8.8.8"]
+#label 可以指定版本，如python2时，可以为pip或pip2，python3时为pip3
+[package]
+    [package.yum]
+    state = 1
+    label = "yum"
+    name = [
+        "ntpd"
+    ]
+    [package.pip]
+    state = 1
+    label  = "pip3"
+    name = [
+        "sh"
+    ]
+     [package.perl]
+    state = 1
+    label = "perl"
+    name = [
+        "XML::Parser"
+    ]
 
-[memory]
-total = 995700
-#磁盘的大小size类型为float64
-[disk]
-    [disk.dbhome]
-    mountpoint = "/dbhome"
-    size = 20466.0
-    [disk.root]
-    mountpoint = "/"
-    size = 18121.0
-    [disk.export]
-    mountpoint = "/export"
-    size = 29300.0
+[directory]
+    [directory.export]
+    state = 1
+    path = "/export"
+    mode = 0755
+    owner = "root"
+    [directory.logs]
+    state = 1
+    path = "/export/logs"
+    mode = 0755
+    owner = "root"
 
-[resolution]
-server = ["www.baidu.com"]
+#ulimted 参数
+[ulimit]
+    [ulimit.core]
+    state = 1
+        [ulimit.core.soft]
+        domain = "root"
+        type = "soft"
+        item = "core"
+        value = "unlimited"
+        [ulimit.core.hard]
+        domain = "root"
+        type = "hard"
+        item = "core"
+        value = "unlimited"
+    [ulimit.nofile]
+    state = 1
+        [ulimit.nofile.soft]
+        domain = "root"
+        type = "soft"
+        item = "nofile"
+        value = "65535"
+        [ulimit.nofile.hard]
+        domain = "root"
+        type = "hard"
+        item = "nofile"
+        value = "65535"
+    [ulimit.nproc]
+    state = 1
+        [ulimit.nproc.soft]
+        domain = "zack"
+        type = "soft"
+        item = "nproc"
+        value = "5000"
+        [ulimit.nproc.hard]
+        domain = "zack"
+        type = "hard"
+        item = "nproc"
+        value = "10000"
+

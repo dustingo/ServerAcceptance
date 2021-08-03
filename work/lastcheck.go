@@ -3,21 +3,24 @@ package work
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
+	"os"
 	"os/exec"
+	"os/user"
+	"strconv"
 	"strings"
+	"sync"
+	"syscall"
 
 	"github.com/dustingo/ServerAcceptance/util"
 )
 
-const (
-	lastURL = "https://raw.githubusercontent.com/dustingo/configtoml/main/lastcheck.toml"
-)
-
+var wg sync.WaitGroup
 var lconfig util.LastCheckInfo
 
-func LastCheck() {
-	err := Wget(lastURL, "lastcheck.toml")
+func LastCheck(url string) {
+	err := Wget(url, "lastcheck.toml")
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -27,23 +30,29 @@ func LastCheck() {
 		fmt.Println(err)
 		return
 	}
+	fmt.Println(last)
 	// Service
 	offState, offLabel, offName, onState, onLabel, onName := last.GetService()
-	fmt.Println("Service.off:")
-	serviceCMD(offState, offName, offLabel)
-	fmt.Println("Service.on:")
-	serviceCMD(onState, onName, onLabel)
+	// Package
 	yumState, yumLabe, yumName, pipState, pipLabel, pipName, perlState, perlLabel, perlName := last.GetPackage()
-	fmt.Println("Package.yum:")
-	packageCMD(yumState, yumName, yumLabe)
-	fmt.Println("Package.pip:")
-	packageCMD(pipState, pipName, pipLabel)
-	fmt.Println("Package.perl:")
-	packageCMD(perlState, perlName, perlLabel)
+	// Directory
+	dirInfo := last.GetDirectory()
+	//Ulimit
+	ulimit := last.GetUlimit()
+	wg.Add(7)
+	go packageCMD(yumState, yumName, yumLabe)
+	go packageCMD(pipState, pipName, pipLabel)
+	go packageCMD(perlState, perlName, perlLabel)
+	go serviceCMD(offState, offName, offLabel)
+	go serviceCMD(onState, onName, onLabel)
+	go directoryCMD(dirInfo)
+	go ulimitCMD(ulimit)
+	wg.Wait()
 }
 
 //  serviceCMD 校验Service模块
 func serviceCMD(status int, names []string, label string) {
+	defer wg.Done()
 	if status == 1 {
 		cmd := exec.Command("systemctl", "list-units")
 		var out bytes.Buffer
@@ -63,7 +72,7 @@ func serviceCMD(status int, names []string, label string) {
 				for _, unit := range names {
 					if strings.Contains(line, unit) {
 						if strings.Fields(line)[3] == "active" || strings.Fields(line)[3] == "running" {
-							fmt.Printf("%s still running [ERR]\n", unit)
+							fmt.Printf("%s still running \n", unit)
 						}
 					}
 
@@ -83,25 +92,150 @@ func serviceCMD(status int, names []string, label string) {
 							if strings.Fields(line)[3] == "active" || strings.Fields(line)[3] == "running" {
 								continue
 							} else {
-								fmt.Printf("%s not running [ERR]\n", unit)
+								fmt.Printf("%s not running \n", unit)
 							}
 						}
 					}
 				} else {
-					fmt.Printf("%s not running [ERR]\n", unit)
+					fmt.Printf("%s not running \n", unit)
 				}
 			}
 		}
 	} else {
-		fmt.Printf("Service.%s check passed\n", label)
+		fmt.Printf("Service.%s state is %d ignored\n", label, status)
 	}
 }
 
 // packageCMD 校验Package 模块
 func packageCMD(status int, names []string, label string) {
+	defer wg.Done()
 	if status == 1 {
-
+		switch label {
+		case "yum":
+			for _, pack := range names {
+				var out bytes.Buffer
+				cmd := exec.Command("rpm", "-q", pack)
+				cmd.Stdout = &out
+				cmd.Run()
+				fmt.Printf(out.String())
+			}
+		case "pip3", "pip":
+			for _, pack := range names {
+				var out bytes.Buffer
+				cmd := exec.Command(label, "show", pack)
+				cmd.Stdout = &out
+				cmd.Run()
+				if !strings.Contains(out.String(), "Name") {
+					fmt.Printf("package %s is not installed \n", pack)
+				}
+			}
+		case "perl":
+			for _, pack := range names {
+				var out bytes.Buffer
+				cmd := exec.Command(label, "-le", "use %s", pack)
+				cmd.Stderr = &out
+				cmd.Run()
+				if len(out.String()) != 0 {
+					fmt.Printf("package %s is not installed \n", pack)
+				}
+			}
+		default:
+			fmt.Println("unknown type of method ", label)
+		}
 	} else {
-		fmt.Printf("Package.%s pass", label)
+		fmt.Printf("Package.%s status is %d ignored\n", label, status)
+	}
+}
+
+// directoryCMD 校验目录模块
+func directoryCMD(dirMap map[string]util.DirInfo) {
+	defer wg.Done()
+	for k, _ := range dirMap {
+		if dirMap[k].State != 1 {
+			fmt.Printf("Directory or File %s state is %d ignored \n", dirMap[k].Path, dirMap[k].State)
+			continue
+		}
+		f, err := dirModeCheck(dirMap[k].Path)
+		if err != nil {
+			fmt.Println(errors.New(fmt.Sprintf("Directory or File %s not exists", dirMap[k].Path)))
+			return
+		}
+		modEight, _ := strconv.ParseInt(fmt.Sprintf("%04o", f.Mode().Perm()), 10, 64)
+		if modEight != dirMap[k].Mode {
+			fmt.Printf("Directory or File %s perm is %d \n", dirMap[k].Path, modEight)
+			return
+		}
+		uid := f.Sys().(*syscall.Stat_t).Uid
+		currUser, _ := user.LookupId(fmt.Sprint(uid))
+		if currUser.Username != dirMap[k].Owner {
+			fmt.Printf("Directory or File %s owner is %s \n", dirMap[k].Path, currUser.Username)
+			return
+		}
+	}
+}
+
+// ulimitCMD 比较ulimit信息，以/etc/security/limits.conf 配置文件为准
+func ulimitCMD(u *util.Ulimits) {
+	defer wg.Done()
+	var confLimit []string
+	coreSoft := strings.Join([]string{u.Core.Soft.Domain, u.Core.Soft.Type, u.Core.Soft.Item, u.Core.Soft.Value}, "")
+	coreHard := strings.Join([]string{u.Core.Hard.Domain, u.Core.Hard.Type, u.Core.Hard.Item, u.Core.Hard.Value}, "")
+	nofileSoft := strings.Join([]string{u.Nofile.Soft.Domain, u.Nofile.Soft.Type, u.Nofile.Soft.Item, u.Nofile.Soft.Value}, "")
+	nofileHard := strings.Join([]string{u.Nofile.Hard.Domain, u.Nofile.Hard.Type, u.Nofile.Hard.Item, u.Nofile.Hard.Value}, "")
+	nprocSoft := strings.Join([]string{u.Nproc.Soft.Domain, u.Nproc.Soft.Type, u.Nproc.Soft.Item, u.Nproc.Soft.Value}, "")
+	nprocHard := strings.Join([]string{u.Nproc.Hard.Domain, u.Nproc.Hard.Type, u.Nproc.Hard.Item, u.Nproc.Hard.Value}, "")
+	confLimit = append(confLimit, coreSoft, coreHard, nofileSoft, nofileHard, nprocSoft, nprocHard)
+	s := ulimitCheck()
+	if u.Core.State == 1 {
+		compareUlimit(coreSoft, s)
+		compareUlimit(coreHard, s)
+	}
+	if u.Nofile.State == 1 {
+		compareUlimit(nofileSoft, s)
+		compareUlimit(nofileHard, s)
+	}
+	if u.Nproc.State == 1 {
+		compareUlimit(nprocSoft, s)
+		compareUlimit(nprocHard, s)
+
+	}
+}
+
+//dirModeCheck 检查目录或文件是否存在
+func dirModeCheck(p string) (os.FileInfo, error) {
+	fi, err := os.Lstat(p)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, err
+		}
+	}
+	return fi, nil
+}
+
+// ulimitCheck 查询ulimit信息
+func ulimitCheck() []string {
+	var serverLimit []string
+	f, err := os.Open("/etc/security/limits.conf")
+	if err != nil {
+		fmt.Println(err)
+		return nil
+	}
+	defer f.Close()
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if len(line) == 0 || strings.HasPrefix(line, "#") {
+			continue
+		}
+		s := strings.Join(strings.Fields(line), "")
+		serverLimit = append(serverLimit, s)
+	}
+	return serverLimit
+}
+
+func compareUlimit(c string, s []string) {
+	serverLimitStr := strings.Join(s, "")
+	if !strings.Contains(serverLimitStr, c) {
+		fmt.Println(c)
 	}
 }

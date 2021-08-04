@@ -8,10 +8,10 @@ import (
 )
 
 type tomlConfig struct {
-	Cpu        CpuInformation
-	Interface  map[string]InterfaceInformation
-	Memory     MemInformation
-	Dns        DnsInformation
+	Cpu       CpuInformation
+	Interface map[string]InterfaceInformation
+	Memory    MemInformation
+	//	Dns        DnsInformation
 	System     SystemInformation
 	Disk       map[string]DiskInformation
 	Resolution ResolutionInformation
@@ -38,11 +38,12 @@ type InterfaceInformation struct {
 	Mtu   string
 }
 
+/*
 //dns
 type DnsInformation struct {
 	Nameserver []string
 }
-
+*/
 //内存
 type MemInformation struct {
 	Total int

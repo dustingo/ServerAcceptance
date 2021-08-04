@@ -14,6 +14,7 @@ import (
 	"syscall"
 
 	"github.com/dustingo/ServerAcceptance/util"
+	"github.com/lorenzosaino/go-sysctl"
 )
 
 var wg sync.WaitGroup
@@ -30,16 +31,19 @@ func LastCheck(url string) {
 		fmt.Println(err)
 		return
 	}
-	fmt.Println(last)
 	// Service
 	offState, offLabel, offName, onState, onLabel, onName := last.GetService()
 	// Package
 	yumState, yumLabe, yumName, pipState, pipLabel, pipName, perlState, perlLabel, perlName := last.GetPackage()
 	// Directory
 	dirInfo := last.GetDirectory()
-	//Ulimit
+	// Ulimit
 	ulimit := last.GetUlimit()
-	wg.Add(7)
+	// syskernel
+	syskernel := last.GetSysKernel()
+	// dns
+	dnsinfo := last.GetDNS()
+	wg.Add(9)
 	go packageCMD(yumState, yumName, yumLabe)
 	go packageCMD(pipState, pipName, pipLabel)
 	go packageCMD(perlState, perlName, perlLabel)
@@ -47,6 +51,8 @@ func LastCheck(url string) {
 	go serviceCMD(onState, onName, onLabel)
 	go directoryCMD(dirInfo)
 	go ulimitCMD(ulimit)
+	go sysKernelCMD(syskernel)
+	go dnsCMD(dnsinfo)
 	wg.Wait()
 }
 
@@ -233,9 +239,52 @@ func ulimitCheck() []string {
 	return serverLimit
 }
 
+// compareUlimit 确认配置文件里的条目是否在server中存在
 func compareUlimit(c string, s []string) {
 	serverLimitStr := strings.Join(s, "")
 	if !strings.Contains(serverLimitStr, c) {
 		fmt.Println(c)
+	}
+}
+
+// sysKernelCMD 校验内核参数
+func sysKernelCMD(s []util.Syskernel) {
+	defer wg.Done()
+	if s[0].Value == 1 {
+		for _, info := range s {
+			if info.Name == "state" {
+				continue
+			}
+			v := strconv.Itoa(info.Value)
+			kMap, err := sysctl.GetPattern(info.Name)
+			if err != nil {
+				fmt.Println(err)
+				continue
+			}
+			if v == kMap[info.Name] {
+				continue
+			} else {
+				fmt.Printf("Server %s value %s\n", info.Name, kMap[info.Name])
+			}
+		}
+	}
+}
+
+// dnsCMD 校验DNS信息
+func dnsCMD(d *util.Dns) {
+	defer wg.Done()
+	if d.State == 1 {
+		dnsSlice, err := util.GetDNSInfo()
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		dnsStr := strings.Join(dnsSlice, ",")
+		for _, dns := range d.NameServer {
+			if strings.Contains(dnsStr, dns) {
+				continue
+			}
+			fmt.Printf("DNS MISSED %s", dns)
+		}
 	}
 }

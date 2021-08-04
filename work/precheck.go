@@ -41,14 +41,13 @@ func PreCheck(url string) {
 	if diskerr != nil {
 		fmt.Println(diskerr)
 	}
-	//dns
-	dns, dnserr := util.GetDNSInfo()
-	if dnserr != nil {
-		log.Fatalln("Get dns Error:", dnserr)
-	}
-
-	//
-
+	/*
+		//dns
+		dns, dnserr := util.GetDNSInfo()
+		if dnserr != nil {
+			log.Fatalln("Get dns Error:", dnserr)
+		}
+	*/
 	//解析配置文件
 	tc, tcerr := util.ParseToml("config.toml")
 	if tcerr != nil {
@@ -148,25 +147,27 @@ func PreCheck(url string) {
 		}
 
 	}
-	//检查dns
-	fmt.Println("DNS:")
-	dnsServerMap := make(map[string]int)
-	lostDNS := []string{}
-	for n, d := range dns {
-		dnsServerMap[d] = n
+	/*
+		//检查dns
+		fmt.Println("DNS:")
+		dnsServerMap := make(map[string]int)
+		lostDNS := []string{}
+		for n, d := range dns {
+			dnsServerMap[d] = n
 
-	}
-	for _, configDNS := range tc.Dns.Nameserver {
-		if _, ok := dnsServerMap[configDNS]; ok {
-			continue
 		}
-		lostDNS = append(lostDNS, configDNS)
-	}
+		for _, configDNS := range tc.Dns.Nameserver {
+			if _, ok := dnsServerMap[configDNS]; ok {
+				continue
+			}
+			lostDNS = append(lostDNS, configDNS)
+		}
 
-	if len(lostDNS) == 0 {
-		fmt.Printf("DNS Info: %v [OK]\n", tc.Dns.Nameserver)
-	} else {
-		fmt.Printf("DNS Info: %v [ERR]\n", dns)
-		fmt.Printf("DNS LOST: %v \n", lostDNS)
-	}
+		if len(lostDNS) == 0 {
+			fmt.Printf("DNS Info: %v [OK]\n", tc.Dns.Nameserver)
+		} else {
+			fmt.Printf("DNS Info: %v [ERR]\n", dns)
+			fmt.Printf("DNS LOST: %v \n", lostDNS)
+		}
+	*/
 }

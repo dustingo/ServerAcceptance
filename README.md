@@ -40,5 +40,5 @@ USAGE:
 
 > precheck和lastcheck 模板如下
 
-  precheck 模板：https://raw.githubusercontent.com/dustingo/configtoml/main/config.toml
+  precheck 模板：https://raw.githubusercontent.com/dustingo/configtoml/main/config.toml  
   lastcheck 模板: https://raw.githubusercontent.com/dustingo/configtoml/main/lastcheck.toml
